@@ -1,0 +1,313 @@
+const express = require("express");
+const router = express.Router();
+const db = require("../config/db");
+const authenticateToken = require("../middleware/authMiddleware");
+
+// Fetch meal schedule
+router.get("/meals", authenticateToken, (req, res) => {
+  const managerQuery = `
+    SELECT manager_ID FROM meal_manager WHERE student_ID = ?;
+  `;
+  
+  db.query(managerQuery, [req.user.student_ID], (err, results) => {
+    if (err) {
+      console.error("Error fetching manager ID:", err);
+      return res.status(500).json({ error: "Failed to fetch manager ID." });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ error: "No manager record found for this student." });
+    }
+
+    const manager_ID = results[0].manager_ID;
+
+    const mealQuery = `
+      SELECT 
+        meal.*
+      FROM 
+        meal
+      JOIN 
+        meal_manager ON meal.manager_ID = meal_manager.manager_ID
+      WHERE 
+        meal_manager.manager_ID = ?;
+    `;
+    
+    db.query(mealQuery, [manager_ID], (err, results) => {
+      if (err) {
+        console.error("Error fetching meals:", err);
+        return res.status(500).json({ error: "Failed to fetch meals." });
+      }
+      res.json(results);
+    });
+  });
+});
+
+// Add a new meal
+router.post("/add-meal", authenticateToken, (req, res) => {
+  const { meal_ID, meal_type, Date, description, price } = req.body;
+
+  if (!meal_ID || !meal_type || !Date || !description || !price) {
+    return res.status(400).json({ error: "All fields are required." });
+  }
+
+  if (isNaN(price) || parseInt(price) <= 0) {
+    return res.status(400).json({ error: "Price must be a positive number." });
+  }
+
+  const managerQuery = `
+    SELECT manager_ID FROM meal_manager WHERE student_ID = ?;
+  `;
+
+  db.query(managerQuery, [req.user.student_ID], (err, results) => {
+    if (err) {
+      console.error("Error fetching manager ID:", err);
+      return res.status(500).json({ error: "Failed to fetch manager ID." });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ error: "No manager record found for this student." });
+    }
+
+    const manager_ID = results[0].manager_ID;
+
+    const query = `
+      INSERT INTO meal (meal_ID, meal_type, Date, description, manager_ID, price)
+      VALUES (?, ?, ?, ?, ?, ?);
+    `;
+
+    db.query(query, [meal_ID, meal_type, Date, description, manager_ID, parseInt(price)], (err) => {
+      if (err) {
+        console.error("Error adding meal:", err);
+        return res.status(500).json({ error: "Failed to add meal." });
+      }
+      res.json({ message: "Meal added successfully." });
+    });
+  });
+});
+
+// Update a meal
+router.put("/update-meal/:meal_ID", authenticateToken, (req, res) => {
+  const { meal_type, Date, description, price } = req.body;
+  const { meal_ID } = req.params;
+
+
+  if (!meal_type || !Date || !description || !price) {
+    return res.status(400).json({ error: "All fields are required." });
+  }
+
+  const managerQuery = `
+    SELECT manager_ID FROM meal_manager WHERE student_ID = ?;
+  `;
+
+  db.query(managerQuery, [req.user.student_ID], (err, results) => {
+    if (err) {
+      console.error("Error fetching manager ID:", err);
+      return res.status(500).json({ error: "Failed to fetch manager ID." });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ error: "No manager record found for this student." });
+    }
+
+    const manager_ID = results[0].manager_ID;
+
+    const query = `
+      UPDATE meal
+      SET meal_type = ?, Date = ?, description = ?, price = ?
+      WHERE meal_ID = ? AND manager_ID = ?;
+    `;
+
+    db.query(query, [meal_type, Date, description, price, meal_ID, manager_ID], (err) => {
+      if (err) {
+        console.error("Error updating meal:", err);
+        return res.status(500).json({ error: "Failed to update meal." });
+      }
+      res.json({ message: "Meal updated successfully." });
+    });
+  });
+});
+
+// Delete a meal
+router.delete("/delete-meal/:meal_ID", authenticateToken, (req, res) => {
+  const { meal_ID } = req.params;
+
+  const managerQuery = `
+    SELECT manager_ID FROM meal_manager WHERE student_ID = ?;
+  `;
+
+  db.query(managerQuery, [req.user.student_ID], (err, results) => {
+    if (err) {
+      console.error("Error fetching manager ID:", err);
+      return res.status(500).json({ error: "Failed to fetch manager ID." });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ error: "No manager record found for this student." });
+    }
+
+    const manager_ID = results[0].manager_ID;
+
+    const query = `
+      DELETE FROM meal
+      WHERE meal_ID = ? AND manager_ID = ?;
+    `;
+
+    db.query(query, [meal_ID, manager_ID], (err) => {
+      if (err) {
+        console.error("Error deleting meal:", err);
+        return res.status(500).json({ error: "Failed to delete meal." });
+      }
+      res.json({ message: "Meal deleted successfully." });
+    });
+  });
+});
+
+
+// Delete a meal
+router.delete("/delete-meal/:meal_ID", authenticateToken, (req, res) => {
+  const { meal_ID } = req.params;
+
+  // Get manager_ID from the meal_manager table based on student_ID
+  const managerQuery = `
+    SELECT manager_ID FROM meal_manager WHERE student_ID = ?;
+  `;
+
+  db.query(managerQuery, [req.user.student_ID], (err, results) => {
+    if (err) {
+      console.error("Error fetching manager ID:", err);
+      return res.status(500).json({ error: "Failed to fetch manager ID." });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ error: "No manager record found for this student." });
+    }
+
+    const manager_ID = results[0].manager_ID;
+
+    const query = `
+      DELETE FROM meal
+      WHERE meal_ID = ? AND manager_ID = ?;
+    `;
+
+    db.query(query, [meal_ID, manager_ID], (err) => {
+      if (err) {
+        console.error("Error deleting meal:", err);
+        return res.status(500).json({ error: "Failed to delete meal." });
+      }
+      res.json({ message: "Meal deleted successfully." });
+    });
+  });
+});
+
+// Fetch notices
+router.get("/notices", authenticateToken, (req, res) => {
+  // Get manager_ID from the meal_manager table based on student_ID
+  const managerQuery = `
+    SELECT manager_ID FROM meal_manager WHERE student_ID = ?;
+  `;
+  
+  db.query(managerQuery, [req.user.student_ID], (err, results) => {
+    if (err) {
+      console.error("Error fetching manager ID:", err);
+      return res.status(500).json({ error: "Failed to fetch manager ID." });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ error: "No manager record found for this student." });
+    }
+
+    const manager_ID = results[0].manager_ID;
+
+    // Fetch notices 
+    const noticeQuery = `
+      SELECT 
+        notice.notice_ID, 
+        notice.type, 
+        notice.message, 
+        notice.date
+      FROM 
+        notice
+      ORDER BY 
+        notice.notice_ID DESC;
+    `;
+
+    db.query(noticeQuery, [manager_ID], (err, results) => {
+      if (err) {
+        console.error("Error fetching notices:", err);
+        return res.status(500).json({ error: "Failed to fetch notices." });
+      }
+      res.json(results);
+    });
+  });
+});
+
+
+// Post a notice
+router.post("/post-notice", authenticateToken, (req, res) => {
+  const { type, message } = req.body;
+  
+  if (!type || !message) {
+    return res.status(400).json({ error: "All fields are required." });
+  }
+
+  // Get manager_ID from the meal_manager table based on student_ID
+  const managerQuery = `
+    SELECT manager_ID FROM meal_manager WHERE student_ID = ?;
+  `;
+
+  db.query(managerQuery, [req.user.student_ID], (err, results) => {
+    if (err) {
+      console.error("Error fetching manager ID:", err);
+      return res.status(500).json({ error: "Failed to fetch manager ID." });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ error: "No manager record found for this student." });
+    }
+
+    const manager_ID = results[0].manager_ID;
+
+    const query = `
+      INSERT INTO notice (type, message, manager_ID, date)
+      VALUES (?, ?, ?, CURDATE());
+    `;
+
+    db.query(query, [type, message, manager_ID], (err) => {
+      if (err) {
+        console.error("Error posting notice:", err);
+        return res.status(500).json({ error: "Failed to post notice." });
+      }
+      res.json({ message: "Notice posted successfully." });
+    });
+  });
+});
+
+// Delete a notice
+router.delete("/delete-notice/:notice_ID", authenticateToken, (req, res) => {
+  const { notice_ID } = req.params;
+
+  // Get manager_ID from the meal_manager table based on student_ID
+  const managerQuery = `
+    SELECT manager_ID FROM meal_manager WHERE student_ID = ?;
+  `;
+
+  db.query(managerQuery, [req.user.student_ID], (err, results) => {
+    if (err) {
+      console.error("Error fetching manager ID:", err);
+      return res.status(500).json({ error: "Failed to fetch manager ID." });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ error: "No manager record found for this student." });
+    }
+
+    const manager_ID = results[0].manager_ID;
+
+    const query = `
+      DELETE FROM notice
+      WHERE notice_ID = ? AND manager_ID = ?;
+    `;
+
+    db.query(query, [notice_ID, manager_ID], (err) => {
+      if (err) {
+        console.error("Error deleting notice:", err);
+        return res.status(500).json({ error: "Failed to delete notice." });
+      }
+      res.json({ message: "Notice deleted successfully." });
+    });
+  });
+});
+
+module.exports = router;
